@@ -2,6 +2,7 @@ package server;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.file.Files;
 
 /**
  * Обработчик входящих клиентов
@@ -23,6 +24,7 @@ public class ClientHandler implements Runnable {
              DataInputStream in = new DataInputStream(socket.getInputStream())){
             while (true) {
                 String command = in.readUTF();
+                System.out.println("Command - " + command);
                 if ("upload".equals(command)) {
                     try {
                         File file = new File("server" + File.separator + in.readUTF());
@@ -32,7 +34,7 @@ public class ClientHandler implements Runnable {
                         long size = in.readLong();
                         FileOutputStream fos = new FileOutputStream(file);
                         byte[] buffer = new byte[BUFFER_SIZE];
-                        for (int i = 0; i < (size + BUFFER_SIZE - 1) / BUFFER_SIZE; i++) { // FIXME
+                        for (int i = 0; i < (size + BUFFER_SIZE - 1) / BUFFER_SIZE; i++) {
                             int read = in.read(buffer);
                             fos.write(buffer, 0, read);
                         }
@@ -45,14 +47,15 @@ public class ClientHandler implements Runnable {
                     try {
                         File file = new File("server" + File.separator + in.readUTF());
                         if (file.exists()) {
-                            out.writeUTF("download");
                             out.writeUTF(file.getName());
                             long length = file.length();
+                            // отправляем длину файла, который будем передавать
                             out.writeLong(length);
                             FileInputStream fis = new FileInputStream(file);
                             int read = 0;
                             byte[] buffer = new byte[BUFFER_SIZE];
                             while ((read = fis.read(buffer)) != -1) {
+                                // частями отправляем файл
                                 out.write(buffer, 0, read);
                             }
                             out.flush();
@@ -63,8 +66,14 @@ public class ClientHandler implements Runnable {
                         out.writeUTF("Error");
                     }
                 } else if ("remove".equals(command)) {
-                    // TODO: 02.03.2021
-                    // realize remove
+                    try {
+                        File file = new File("server" + File.separator + in.readUTF());
+                        if (Files.deleteIfExists(file.toPath())){
+                            out.writeUTF("Delete success");
+                        }
+                    } catch (IOException e) {
+                        out.writeUTF("Error");
+                    }
                 }
             }
         } catch (IOException e) {
