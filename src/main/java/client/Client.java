@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class Client {
+public class Client{
     private final Socket socket;
     private final DataInputStream in;
     private final DataOutputStream out;
@@ -37,6 +37,7 @@ public class Client {
         // list file - JList
         JButton uploadButton = new JButton("Upload");
         JButton downloadButton = new JButton("Download");
+        JButton removeButton = new JButton("Remove");
 /*
         frame.getContentPane().add(BorderLayout.NORTH, ta);
         frame.getContentPane().add(BorderLayout.CENTER, new JScrollPane(list));
@@ -48,6 +49,7 @@ public class Client {
         frame.getContentPane().add(BorderLayout.CENTER, ta);
         frame.getContentPane().add(BorderLayout.SOUTH, uploadButton);
         frame.getContentPane().add(BorderLayout.SOUTH, downloadButton);
+        frame.getContentPane().add(BorderLayout.SOUTH, removeButton);
 
         frame.setVisible(true);
 
@@ -61,6 +63,9 @@ public class Client {
                 e.printStackTrace();
             }
         });
+        removeButton.addActionListener(a -> {
+            removeFile(ta.getText());
+        });
     }
 //    private void fillList(DefaultListModel<String> myModel) {
 //
@@ -72,20 +77,25 @@ public class Client {
 
     private String downloadFileList(String fileName) throws IOException {
         try {
-            File file = new File("server" + File.separator + in.readUTF());
+            // отправляем команду - download
+            out.writeUTF("download");
+            // отправляем название файла, который мы хотим скачать
+            out.writeUTF(fileName);
+            File file = new File("client" + File.separator + in.readUTF());
             if (!file.exists()) {
                 file.createNewFile();
             }
+            // получаем размер файла
             long size = in.readLong();
             FileOutputStream fos = new FileOutputStream(file);
             byte[] buffer = new byte[BUFFER_SIZE];
-            for (int i = 0; i < (size + BUFFER_SIZE - 1) / BUFFER_SIZE; i++) { // FIXME
+            for (int i = 0; i < (size + BUFFER_SIZE - 1) / BUFFER_SIZE; i++) {
                 int read = in.read(buffer);
                 fos.write(buffer, 0, read);
             }
             fos.close();
             out.writeUTF("DONE");
-        } catch (Exception e) {
+        } catch (IOException e) {
             out.writeUTF("ERROR");
         }
         return "";
@@ -111,6 +121,24 @@ public class Client {
             } else {
                 return "File is not exists";
             }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return "Something error";
+    }
+
+    /**
+     * Функция удаления файла с сервера
+     * @param fileName название файла, которое хотим удалить
+     * @return status с которым завершилось удаление
+     */
+    private String removeFile(String fileName) {
+        try {
+            out.writeUTF("remove");
+            out.writeUTF(fileName);
+            String status = in.readUTF();
+            System.out.println("Статус удаления - " + status);
+            return status;
         } catch (IOException e) {
             e.printStackTrace();
         }
